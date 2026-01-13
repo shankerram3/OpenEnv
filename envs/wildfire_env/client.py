@@ -1,20 +1,18 @@
 # Support both in-repo and standalone imports
 try:
     # In-repo imports (when running from OpenEnv repository)
-    from openenv.core.http_env_client import HTTPEnvClient
+    from openenv.core.env_client import EnvClient
     from openenv.core.client_types import StepResult
-    from .models import WildfireAction, WildfireObservation, WildfireState
+    from openenv.core.env_server.types import State
+    from .models import WildfireAction, WildfireObservation
 except ImportError:
-    # Standalone imports (when environment is standalone with openenv-core from pip)
-    try:
-        from openenv_core.http_env_client import HTTPEnvClient
-    except ImportError:
-        # Fallback to local compatibility shim if package doesn't have it yet
-        from .http_env_client_compat import HTTPEnvClient
-    from openenv_core.client_types import StepResult
-    from wildfire_env.models import WildfireAction, WildfireObservation, WildfireState
+    # Standalone imports (when environment is standalone with openenv from pip)
+    from openenv.core.env_client import EnvClient
+    from openenv.core.client_types import StepResult
+    from openenv.core.env_server.types import State
+    from wildfire_env.models import WildfireAction, WildfireObservation
 
-class WildfireEnv(HTTPEnvClient[WildfireAction, WildfireObservation]):
+class WildfireEnv(EnvClient[WildfireAction, WildfireObservation, State]):
     def _step_payload(self, action: WildfireAction) -> dict:
         return {"action": action.action, "x": action.x, "y": action.y}
 
@@ -26,8 +24,11 @@ class WildfireEnv(HTTPEnvClient[WildfireAction, WildfireObservation]):
             done=payload.get("done", False),
         )
 
-    def _parse_state(self, payload: dict) -> WildfireState:
-        return WildfireState(**payload)
+    def _parse_state(self, payload: dict) -> State:
+        return State(
+            episode_id=payload.get("episode_id", ""),
+            step_count=payload.get("step_count", 0),
+        )
 
 
 def render_grid(obs: WildfireObservation) -> str:
