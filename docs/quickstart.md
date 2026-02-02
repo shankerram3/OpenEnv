@@ -21,31 +21,35 @@ Install the echo environment client package:
 pip install git+https://huggingface.co/spaces/openenv/echo-env 
 ```
 
-Then you can use the environment via its WebSocket interface with MCP tools.
+Then you can use the environment. The client is **async by default**:
+
+```python
+import asyncio
+from echo_env import EchoAction, EchoEnv
+
+async def main():
+    async with EchoEnv(base_url="https://openenv-echo-env.hf.space") as client:
+        # Reset the environment
+        result = await client.reset()
+        print(result.observation.echoed_message)  # "Echo environment ready!"
+
+        # Send messages
+        result = await client.step(EchoAction(message="Hello, World!"))
+        print(result.observation.echoed_message)  # "Hello, World!"
+        print(result.reward)  # 1.3 (based on message length)
+
+asyncio.run(main())
+```
+
+For **synchronous usage**, use the `.sync()` wrapper:
 
 ```python
 from echo_env import EchoEnv
 
-# Automatically start container and connect
-client = EchoEnv(base_url="https://openenv-echo-env.hf.space")
-
-# Reset the environment
-client.reset()
-
-# List available tools
-tools = client.list_tools()
-print([t.name for t in tools])  # ['echo_message', 'echo_with_length']
-
-# Call tools to send messages
-result = client.call_tool("echo_message", message="Hello, World!")
-print(result)  # "Hello, World!"
-
-# Call tool with length calculation
-result = client.call_tool("echo_with_length", message="Hello, World!")
-print(result)  # {"message": "Hello, World!", "length": 13}
-
-# Cleanup
-client.close()  # Stops and removes container
+with EchoEnv(base_url="https://openenv-echo-env.hf.space").sync() as client:
+    result = client.reset()
+    result = client.step(EchoAction(message="Hello, World!"))
+    print(result.observation.echoed_message)
 ```
 
 ### Using environments from Hugging Face
@@ -122,18 +126,17 @@ The `AutoEnv` and `AutoAction` classes provide a HuggingFace-style auto-discover
 ```python
 from openenv import AutoEnv, AutoAction
 
-# Load environment from installed package
-env = AutoEnv.from_env("coding-env")
+# Load environment from installed package (returns sync client)
+env = AutoEnv.from_env("echo-env")
 
 # Get the action class
-CodeAction = AutoAction.from_env("coding-env")
+EchoAction = AutoAction.from_env("echo-env")
 
-# Use them together
-result = env.reset()
-result = env.step(CodeAction(code="print('Hello, World!')"))
-print(result.observation.stdout)  # "Hello, World!"
-
-env.close()
+# Use them together (sync API)
+with env.sync() as client:
+    result = client.reset()
+    result = client.step(EchoAction(message="Hello!"))
+    print(result.observation.echoed_message)  # "Hello!"
 ```
 
 Note: Some environments like `echo-env` use MCP tools instead of actions. For those, use the tool-calling API:
