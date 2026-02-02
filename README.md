@@ -146,6 +146,8 @@ Base class for implementing environment logic:
 
 #### 3. EnvClient (Client-Side)
 Base class for environment communication:
+- **Async by default**: Use `async with` and `await` for all operations
+- **Sync wrapper**: Call `.sync()` to get a `SyncEnvClient` for synchronous usage
 - Handles WebSocket connections to environment server
 - Contains a utility to spin up a docker container locally for the corresponding environment
 - Type-safe action/observation parsing

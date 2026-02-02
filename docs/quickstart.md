@@ -50,12 +50,20 @@ client.close()  # Stops and removes container
 
 ### Using environments from Hugging Face
 
-You can also use environments from Hugging Face. To do this, you can use the `from_hub` method of the environment class.
+You can also use environments from Hugging Face. To do this, you can use the `from_env` method of the environment class.
 
 ```python
+import asyncio
 from echo_env import EchoEnv
 
-client = EchoEnv.from_hub("openenv/echo_env")
+async def main():
+    # Pulls from Hugging Face and starts a container
+    client = await EchoEnv.from_env("openenv/echo_env")
+    async with client:
+        result = await client.reset()
+        print(result.observation)
+
+asyncio.run(main())
 ```
 
 In the background, the environment will be pulled from Hugging Face and a container will be started on your local machine.
@@ -63,9 +71,8 @@ In the background, the environment will be pulled from Hugging Face and a contai
 You can also connect to the remote space on Hugging Face by passing the base URL to the environment class.
 
 ```python
-from echo_env import EchoEnv
-
-client = EchoEnv(base_url="https://openenv-echo-env.hf.space")
+async with EchoEnv(base_url="https://openenv-echo-env.hf.space") as client:
+    result = await client.reset()
 ```
 
 ### Using Docker containers
@@ -73,9 +80,16 @@ client = EchoEnv(base_url="https://openenv-echo-env.hf.space")
 You can also use environments from Docker containers. To do this, you can use the `from_docker_image` method of the environment class.
 
 ```python
+import asyncio
 from echo_env import EchoEnv
 
-client = EchoEnv.from_docker_image("registry.hf.space/openenv-echo-env:latest")
+async def main():
+    client = await EchoEnv.from_docker_image("registry.hf.space/openenv-echo-env:latest")
+    async with client:
+        result = await client.reset()
+        print(result.observation)
+
+asyncio.run(main())
 ```
 
 In the background, the environment will be pulled from Docker Hub and a container will be started on your local machine.
@@ -89,14 +103,21 @@ docker run -p 8000:8000 registry.hf.space/openenv-echo-env:latest
 Then you can use the environment via its HTTP interface.
 
 ```python
-from echo_env import EchoEnv
+# Async
+async with EchoEnv(base_url="http://localhost:8000") as client:
+    result = await client.reset()
 
-client = EchoEnv(base_url="http://localhost:8000")
+# Or sync
+with EchoEnv(base_url="http://localhost:8000").sync() as client:
+    result = client.reset()
 ```
 
 ### Using AutoEnv and AutoAction (Recommended)
 
 The `AutoEnv` and `AutoAction` classes provide a HuggingFace-style auto-discovery API that automatically selects and instantiates the correct environment client and action classes without manual imports.
+
+!!! note
+    `AutoEnv.from_env()` returns a synchronous client by default for convenience. For async usage, use the client class directly.
 
 ```python
 from openenv import AutoEnv, AutoAction
@@ -176,7 +197,35 @@ Then you can use the environment via its HTTP interface.
 ```python
 from echo_env import EchoEnv
 
-client = EchoEnv(base_url="http://localhost:8000")
+# Async (recommended)
+async with EchoEnv(base_url="http://localhost:8000") as client:
+    result = await client.reset()
+
+# Or sync
+with EchoEnv(base_url="http://localhost:8000").sync() as client:
+    result = client.reset()
+```
+
+## Async vs Sync: When to Use Each
+
+OpenEnv clients are **async by default** to support efficient concurrent operations. Use:
+
+- **Async (`async with`, `await`)**: Best for production, parallel environments, and integration with async frameworks
+- **Sync (`.sync()` wrapper)**: Convenient for scripts, notebooks, and synchronous codebases
+
+```python
+# Async - parallel environment interactions
+async def run_parallel():
+    async with EchoEnv(base_url="...") as env1, EchoEnv(base_url="...") as env2:
+        # Run in parallel
+        result1, result2 = await asyncio.gather(
+            env1.step(action1),
+            env2.step(action2)
+        )
+
+# Sync - simple sequential usage
+with EchoEnv(base_url="...").sync() as env:
+    result = env.step(action)
 ```
 
 ## Nice work! You've now used an OpenEnv environment.
